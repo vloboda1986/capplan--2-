@@ -1,0 +1,5 @@
+{
+  "name": "CapPlan",
+  "description": "A smart capacity planning tool for engineering teams featuring weekly allocation views, project breakdowns, leave management, and AI-driven workload analysis.",
+  "requestFramePermissions": []
+}
