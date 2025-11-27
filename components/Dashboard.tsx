@@ -88,20 +88,28 @@ const Dashboard: React.FC<DashboardProps> = ({ developers, plans, teams, project
     const absentToday: { dev: Developer; type: AbsenceType }[] = [];
     const overloaded: { dev: Developer; booked: number; capacity: number }[] = [];
     const underloaded: { dev: Developer; booked: number; capacity: number }[] = [];
+    const underutilizedToday: { dev: Developer; available: number }[] = [];
+    const underutilizedToday: { dev: Developer; available: number }[] = [];
 
     developers.forEach(dev => {
       const plan = plans.find(p => p.developerId === dev.id);
+      const dailyCap = dev.capacity || WORK_HOURS_TARGET;
 
       // 1. Check Absence Today
       const absenceToday = plan?.absences[todayStr];
       if (absenceToday && absenceToday !== AbsenceType.None) {
         absentToday.push({ dev, type: absenceToday });
+      } else {
+        // Calculate Today's Utilization
+        const bookedToday = plan?.projects.reduce((sum, proj) => sum + (proj.allocations[todayStr] || 0), 0) || 0;
+        if (bookedToday < dailyCap) {
+          underutilizedToday.push({ dev, available: dailyCap - bookedToday });
+        }
       }
 
       // 2. Calculate Weekly Stats
       let devWeeklyBooked = 0;
       let devWeeklyAbsenceHours = 0;
-      const dailyCap = dev.capacity || WORK_HOURS_TARGET;
 
       weekDateStrings.forEach(dateStr => {
         // Sum allocations
@@ -134,7 +142,8 @@ const Dashboard: React.FC<DashboardProps> = ({ developers, plans, teams, project
       utilization: totalCapacity > 0 ? Math.round((totalBooked / totalCapacity) * 100) : 0,
       absentToday,
       overloaded,
-      underloaded
+      underloaded,
+      underutilizedToday
     };
   }, [developers, plans, todayStr, weekDateStrings]);
 
@@ -209,7 +218,7 @@ const Dashboard: React.FC<DashboardProps> = ({ developers, plans, teams, project
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-y-auto">
       {/* --- Top KPIs --- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         {/* Capacity Card */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 flex items-center space-x-4">
           <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
@@ -245,6 +254,18 @@ const Dashboard: React.FC<DashboardProps> = ({ developers, plans, teams, project
             <div className="text-sm text-slate-500 font-medium">Workload Risks</div>
             <div className="text-2xl font-bold text-slate-800">{stats.overloaded.length}</div>
             <div className="text-xs text-slate-400 mt-1">Overloaded developers</div>
+          </div>
+        </div>
+
+        {/* Out Today Card */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 flex items-center space-x-4">
+          <div className="p-3 bg-orange-100 text-orange-600 rounded-lg">
+            <CalendarOff size={24} />
+          </div>
+          <div>
+            <div className="text-sm text-slate-500 font-medium">Out Today</div>
+            <div className="text-2xl font-bold text-slate-800">{stats.absentToday.length}</div>
+            <div className="text-xs text-slate-400 mt-1">On leave today</div>
           </div>
         </div>
       </div>
@@ -291,12 +312,94 @@ const Dashboard: React.FC<DashboardProps> = ({ developers, plans, teams, project
             </div>
           </div>
 
-          {/* Underloaded List */}
+          {/* Underutilized Today List */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-emerald-50/50 flex justify-between items-center">
+              <h3 className="font-bold text-slate-800 flex items-center">
+                <CheckCircle2 size={18} className="mr-2 text-emerald-600" />
+                Available Today ({format(today, 'MMM d')})
+              </h3>
+              <span className="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                {stats.underutilizedToday.length}
+              </span>
+            </div>
+            <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
+              {stats.underutilizedToday.length === 0 ? (
+                <div className="p-6 text-center text-slate-400 text-sm">Everyone is fully booked today.</div>
+              ) : (
+                stats.underutilizedToday.map(item => (
+                  <div key={item.dev.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center space-x-3">
+                      <Avatar name={item.dev.name} className="w-10 h-10 text-sm" />
+                      <div>
+                        <div className="font-medium text-slate-900">{item.dev.name}</div>
+                        <div className="text-xs text-slate-500 flex items-center space-x-1">
+                          <span className={`px-1.5 rounded-sm ${getTeamColor(item.dev.teamId).split(' ')[0]} bg-opacity-30`}>
+                            {getTeamName(item.dev.teamId)}
+                          </span>
+                          <span>• {item.dev.role}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-emerald-600">{item.available}h</div>
+                      <div className="text-xs text-slate-400">available</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Out Today List */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-orange-50/50 flex justify-between items-center">
+              <h3 className="font-bold text-slate-800 flex items-center">
+                <CalendarOff size={18} className="mr-2 text-orange-600" />
+                Out Today ({format(today, 'MMM d')})
+              </h3>
+              <span className="text-xs font-semibold bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                {stats.absentToday.length}
+              </span>
+            </div>
+            <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
+              {stats.absentToday.length === 0 ? (
+                <div className="p-6 text-center text-slate-400 text-sm">Everyone is available today.</div>
+              ) : (
+                stats.absentToday.map(item => (
+                  <div key={item.dev.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center space-x-3">
+                      <Avatar name={item.dev.name} className="w-10 h-10 text-sm" />
+                      <div>
+                        <div className="font-medium text-slate-900">{item.dev.name}</div>
+                        <div className="text-xs text-slate-500 flex items-center space-x-1">
+                          <span className={`px-1.5 rounded-sm ${getTeamColor(item.dev.teamId).split(' ')[0]} bg-opacity-30`}>
+                            {getTeamName(item.dev.teamId)}
+                          </span>
+                          <span>• {item.dev.role}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-sm font-bold ${item.type === AbsenceType.Vacation ? 'text-blue-600' :
+                        item.type === AbsenceType.SickLeave ? 'text-red-600' :
+                          'text-slate-600'
+                        }`}>
+                        {item.type}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Underloaded List (Weekly) */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 bg-yellow-50/50 flex justify-between items-center">
               <h3 className="font-bold text-slate-800 flex items-center">
                 <TrendingDown size={18} className="mr-2 text-yellow-600" />
-                Underutilized / Available
+                Underutilized (Weekly)
               </h3>
               <span className="text-xs font-semibold bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">
                 {stats.underloaded.length}
@@ -304,7 +407,7 @@ const Dashboard: React.FC<DashboardProps> = ({ developers, plans, teams, project
             </div>
             <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
               {stats.underloaded.length === 0 ? (
-                <div className="p-6 text-center text-slate-400 text-sm">Everyone is fully booked.</div>
+                <div className="p-6 text-center text-slate-400 text-sm">Everyone is fully booked this week.</div>
               ) : (
                 stats.underloaded.map(item => (
                   <div key={item.dev.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">

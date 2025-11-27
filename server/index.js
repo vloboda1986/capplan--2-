@@ -9,7 +9,10 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-dotenv.config({ path: join(__dirname, '..', '.env.local') }); // Load env from root
+const envPath = join(__dirname, '..', '.env.local');
+console.log('Loading .env from:', envPath);
+dotenv.config({ path: envPath });
+console.log('MONGODB_URI loaded:', process.env.MONGODB_URI ? 'YES (starts with: ' + process.env.MONGODB_URI.substring(0, 20) + '...)' : 'NO');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -20,6 +23,7 @@ app.use(express.json());
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/capplan';
+console.log('Using MongoDB URI:', MONGODB_URI.substring(0, 30) + '...');
 
 mongoose.connect(MONGODB_URI)
     .then(() => console.log('Connected to MongoDB'))
