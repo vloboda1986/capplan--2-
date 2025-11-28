@@ -72,7 +72,8 @@ const TeamManager: React.FC<TeamManagerProps> = ({
       level: 'Mid',
       avatar: '',
       teamId: '',
-      capacity: 8
+      capacity: 8,
+      type: 'Internal'
     });
     setIsMemberModalOpen(true);
   };
@@ -99,7 +100,8 @@ const TeamManager: React.FC<TeamManagerProps> = ({
       level: memberFormData.level as Level,
       avatar: '',
       teamId: memberFormData.teamId || undefined,
-      capacity: memberFormData.capacity || 8
+      capacity: memberFormData.capacity || 8,
+      type: memberFormData.type || 'Internal'
     };
 
     await onSave(devToSave);
@@ -321,6 +323,11 @@ const TeamManager: React.FC<TeamManagerProps> = ({
                             <div className="flex items-center space-x-3">
                               <Avatar name={dev.name} className="w-9 h-9 text-xs" />
                               <div className="font-medium text-slate-900">{dev.name}</div>
+                              {dev.type === 'Freelancer' && (
+                                <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                                  EXT
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -527,6 +534,20 @@ const TeamManager: React.FC<TeamManagerProps> = ({
                 </div>
               </div>
 
+
+              {/* Type */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                <select
+                  value={memberFormData.type || 'Internal'}
+                  onChange={e => setMemberFormData({ ...memberFormData, type: e.target.value as 'Internal' | 'Freelancer' })}
+                  className="w-full p-2 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                >
+                  <option value="Internal">Internal</option>
+                  <option value="Freelancer">Freelancer</option>
+                </select>
+              </div>
+
             </div>
 
             <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end space-x-3">
@@ -539,79 +560,82 @@ const TeamManager: React.FC<TeamManagerProps> = ({
             </div>
           </div>
         </div>
-      )}
+      )
+      }
 
       {/* TEAM MODAL */}
-      {isTeamModalOpen && !readOnly && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="text-lg font-bold text-slate-800">
-                {editingTeam ? 'Edit Team' : 'Add Team'}
-              </h3>
-              <button onClick={() => setIsTeamModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={20} />
-              </button>
-            </div>
+      {
+        isTeamModalOpen && !readOnly && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 className="text-lg font-bold text-slate-800">
+                  {editingTeam ? 'Edit Team' : 'Add Team'}
+                </h3>
+                <button onClick={() => setIsTeamModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                  <X size={20} />
+                </button>
+              </div>
 
-            <div className="p-6 space-y-5">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Team Name</label>
-                  <input
-                    type="text"
-                    value={teamFormData.name || ''}
-                    onChange={e => setTeamFormData({ ...teamFormData, name: e.target.value })}
-                    className="w-full p-2 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="e.g. Omega Squad"
-                  />
+              <div className="p-6 space-y-5">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Team Name</label>
+                    <input
+                      type="text"
+                      value={teamFormData.name || ''}
+                      onChange={e => setTeamFormData({ ...teamFormData, name: e.target.value })}
+                      className="w-full p-2 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="e.g. Omega Squad"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Position (1-30)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={teamFormData.sortOrder || ''}
+                      onChange={e => setTeamFormData({ ...teamFormData, sortOrder: parseInt(e.target.value) })}
+                      className="w-full p-2 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="1"
+                    />
+                  </div>
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Position (1-30)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="30"
-                    value={teamFormData.sortOrder || ''}
-                    onChange={e => setTeamFormData({ ...teamFormData, sortOrder: parseInt(e.target.value) })}
-                    className="w-full p-2 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="1"
-                  />
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Team Color</label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {PROJECT_COLORS.map(c => {
+                      const isSelected = teamFormData.color === c.value;
+                      const baseColorClass = c.value.split(' ')[0];
+                      return (
+                        <button
+                          key={c.value}
+                          onClick={() => setTeamFormData({ ...teamFormData, color: c.value })}
+                          className={`h-10 rounded-md border-2 transition-all flex items-center justify-center ${baseColorClass} ${isSelected ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-transparent hover:border-slate-300'}`}
+                        >
+                          {isSelected && <Check size={16} className="text-indigo-900" />}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Team Color</label>
-                <div className="grid grid-cols-5 gap-2">
-                  {PROJECT_COLORS.map(c => {
-                    const isSelected = teamFormData.color === c.value;
-                    const baseColorClass = c.value.split(' ')[0];
-                    return (
-                      <button
-                        key={c.value}
-                        onClick={() => setTeamFormData({ ...teamFormData, color: c.value })}
-                        className={`h-10 rounded-md border-2 transition-all flex items-center justify-center ${baseColorClass} ${isSelected ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-transparent hover:border-slate-300'}`}
-                      >
-                        {isSelected && <Check size={16} className="text-indigo-900" />}
-                      </button>
-                    )
-                  })}
-                </div>
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end space-x-3">
+                <button onClick={() => setIsTeamModalOpen(false)} className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-white">
+                  Cancel
+                </button>
+                <button onClick={handleSaveTeam} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">
+                  Save Team
+                </button>
               </div>
-            </div>
-
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end space-x-3">
-              <button onClick={() => setIsTeamModalOpen(false)} className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-white">
-                Cancel
-              </button>
-              <button onClick={handleSaveTeam} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">
-                Save Team
-              </button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

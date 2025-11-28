@@ -16,6 +16,7 @@ import ProjectManager from './components/ProjectManager';
 import Dashboard from './components/Dashboard';
 import RiskDashboard from './components/RiskDashboard';
 import Settings from './components/Settings';
+import UtilizationStats from './components/UtilizationStats';
 import Login from './components/Login';
 import { Developer, Project, DeveloperPlan, AbsenceType, Team, AppUser, UserRole, RiskLog, CalendarEvent } from './types';
 import * as DataService from './services/dataService';
@@ -399,6 +400,17 @@ const App: React.FC = () => {
               projects={projects}
               users={appUsers}
               events={events}
+              onViewUtilization={() => setActiveTab('utilization')}
+            />
+          )}
+
+          {activeTab === 'utilization' && (
+            <UtilizationStats
+              developers={developers}
+              plans={plans}
+              teams={teams}
+              projects={projects}
+              onBack={() => setActiveTab('dashboard')}
             />
           )}
 

@@ -27,6 +27,7 @@ export interface Developer {
   avatar: string;
   teamId?: string;
   capacity?: number; // Daily capacity in hours, default 8
+  type?: 'Internal' | 'Freelancer';
 }
 
 export type Priority = 'High' | 'Medium' | 'Low';

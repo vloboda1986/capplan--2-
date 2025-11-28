@@ -13,6 +13,11 @@ const developerSchema = new mongoose.Schema({
         enum: ['Junior', 'Mid', 'Senior', 'Lead'],
         required: true
     },
+    type: {
+        type: String,
+        enum: ['Internal', 'Freelancer'],
+        default: 'Internal'
+    },
     avatar: { type: String, default: '' },
     teamId: { type: String },
     capacity: { type: Number, default: 8 }

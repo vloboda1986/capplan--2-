@@ -27,9 +27,10 @@ interface DashboardProps {
   projects: Project[];
   users: AppUser[];
   events: CalendarEvent[];
+  onViewUtilization?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ developers, plans, teams, projects, users, events }) => {
+const Dashboard: React.FC<DashboardProps> = ({ developers, plans, teams, projects, users, events, onViewUtilization }) => {
   // Use current real-time date for the dashboard
   const today = new Date();
 
@@ -219,7 +220,10 @@ const Dashboard: React.FC<DashboardProps> = ({ developers, plans, teams, project
       {/* --- Top KPIs --- */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         {/* Capacity Card */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 flex items-center space-x-4">
+        <button
+          onClick={onViewUtilization}
+          className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 flex items-center space-x-4 hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer text-left w-full"
+        >
           <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
             <Activity size={24} />
           </div>
@@ -230,7 +234,7 @@ const Dashboard: React.FC<DashboardProps> = ({ developers, plans, teams, project
               {stats.totalBooked}h booked / {stats.totalCapacity}h available
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Absences Card */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 flex items-center space-x-4">
