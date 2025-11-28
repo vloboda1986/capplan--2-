@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { addDays, format, isSameDay } from 'date-fns';
+import { addDays, format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths } from 'date-fns';
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  ArrowRight,
   X
 } from 'lucide-react';
 import { Developer, Project, DeveloperPlan, AbsenceType, Team, CalendarEvent, Task } from '../types';
@@ -117,6 +118,14 @@ const Planner: React.FC<PlannerProps> = ({
     date: string | null;
     taskFields: { title: string; url: string }[];
   }>({ isOpen: false, developerId: null, projectId: null, date: null, taskFields: [{ title: '', url: '' }] });
+
+  // Copy Task State
+  const [copyTaskModal, setCopyTaskModal] = useState<{
+    isOpen: boolean;
+    task: Task | null;
+    selectedDate: string | null;
+    calendarMonth: Date;
+  }>({ isOpen: false, task: null, selectedDate: null, calendarMonth: new Date() });
 
   // Load events
   useEffect(() => {
@@ -319,6 +328,28 @@ const Planner: React.FC<PlannerProps> = ({
     if (readOnly) return;
     await DataService.deleteTask(taskId);
     setTasks(tasks.filter(t => t.id !== taskId));
+  };
+
+  const handleCopyTaskClick = (task: Task) => {
+    setCopyTaskModal({ isOpen: true, task, selectedDate: null, calendarMonth: new Date() });
+  };
+
+  const handleCopyTask = async () => {
+    if (!copyTaskModal.task || !copyTaskModal.selectedDate) return;
+
+    const newTask: Task = {
+      ...copyTaskModal.task,
+      id: crypto.randomUUID(),
+      date: copyTaskModal.selectedDate
+    };
+
+    await DataService.saveTask(newTask);
+    setTasks([...tasks, newTask]);
+    setCopyTaskModal({ isOpen: false, task: null, selectedDate: null, calendarMonth: new Date() });
+  };
+
+  const handleCloseCopyModal = () => {
+    setCopyTaskModal({ isOpen: false, task: null, selectedDate: null, calendarMonth: new Date() });
   };
 
   const toggleCellExpanded = (cellKey: string) => {
@@ -686,12 +717,21 @@ const Planner: React.FC<PlannerProps> = ({
                                                       <span className="truncate">{task.title}</span>
                                                     </a>
                                                     {!readOnly && (
-                                                      <button
-                                                        onClick={() => handleDeleteTask(task.id)}
-                                                        className="text-slate-300 hover:text-red-500 opacity-0 group-hover/task:opacity-100 transition-opacity p-0.5"
-                                                      >
-                                                        <Trash2 size={10} />
-                                                      </button>
+                                                      <>
+                                                        <button
+                                                          onClick={() => handleCopyTaskClick(task)}
+                                                          className="text-slate-300 hover:text-indigo-500 opacity-0 group-hover/task:opacity-100 transition-opacity p-0.5"
+                                                          title="Copy task to another date"
+                                                        >
+                                                          <ArrowRight size={10} />
+                                                        </button>
+                                                        <button
+                                                          onClick={() => handleDeleteTask(task.id)}
+                                                          className="text-slate-300 hover:text-red-500 opacity-0 group-hover/task:opacity-100 transition-opacity p-0.5"
+                                                        >
+                                                          <Trash2 size={10} />
+                                                        </button>
+                                                      </>
                                                     )}
                                                   </div>
                                                 ))}
@@ -830,6 +870,118 @@ const Planner: React.FC<PlannerProps> = ({
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium text-sm shadow-sm"
               >
                 Save Tasks
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- Copy Task Modal with Calendar --- */}
+      {copyTaskModal.isOpen && copyTaskModal.task && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-800">Copy Task</h3>
+              <button onClick={handleCloseCopyModal} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-4">
+              <div className="mb-4 p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-500 mb-1">Task:</p>
+                <p className="text-sm font-medium text-slate-800 truncate">{copyTaskModal.task.title}</p>
+              </div>
+
+              <p className="text-sm font-medium text-slate-700 mb-3">Select target date:</p>
+
+              {(() => {
+                const currentMonth = copyTaskModal.calendarMonth;
+                const monthStart = startOfMonth(currentMonth);
+                const monthEnd = endOfMonth(currentMonth);
+                const allDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+                return (
+                  <div>
+                    {/* Month header with navigation */}
+                    <div className="flex items-center justify-between mb-2">
+                      <button
+                        onClick={() => setCopyTaskModal(prev => ({ ...prev, calendarMonth: subMonths(prev.calendarMonth, 1) }))}
+                        className="p-1 hover:bg-slate-100 rounded transition-colors"
+                        type="button"
+                      >
+                        <ChevronLeft size={20} className="text-slate-600" />
+                      </button>
+                      <div className="text-center font-bold text-slate-700">
+                        {format(currentMonth, 'MMMM yyyy')}
+                      </div>
+                      <button
+                        onClick={() => setCopyTaskModal(prev => ({ ...prev, calendarMonth: addMonths(prev.calendarMonth, 1) }))}
+                        className="p-1 hover:bg-slate-100 rounded transition-colors"
+                        type="button"
+                      >
+                        <ChevronRight size={20} className="text-slate-600" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2">
+                      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                        <div key={day} className="font-semibold text-slate-500 py-1">{day}</div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                      {/* Add empty cells for days before the 1st of the month */}
+                      {(() => {
+                        // getDay returns 0 for Sunday, 1 for Monday, etc.
+                        // We want Monday (1) to be index 0, so adjust
+                        const firstDayOfWeek = getDay(monthStart);
+                        const offset = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1; // Convert Sunday=0 to index 6, Monday=1 to index 0
+                        return Array.from({ length: offset }).map((_, i) => (
+                          <div key={`empty-${i}`} />
+                        ));
+                      })()}
+
+                      {allDays.map((day, idx) => {
+                        const dayOfWeek = getDay(day);
+                        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                        const dateStr = format(day, 'yyyy-MM-dd');
+                        const isSelected = copyTaskModal.selectedDate === dateStr;
+                        const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
+
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => !isWeekend && setCopyTaskModal(prev => ({ ...prev, selectedDate: dateStr }))}
+                            disabled={isWeekend}
+                            className={`
+                              aspect-square p-2 text-xs rounded transition-all relative
+                              ${isWeekend ? 'text-slate-300 cursor-not-allowed' : 'hover:bg-indigo-50 cursor-pointer'}
+                              ${isSelected ? 'bg-indigo-600 text-white font-bold' : 'text-slate-700'}
+                              ${isToday && !isSelected ? 'ring-2 ring-indigo-400 font-bold' : ''}
+                            `}
+                          >
+                            {format(day, 'd')}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-end space-x-3">
+              <button
+                onClick={handleCloseCopyModal}
+                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCopyTask}
+                disabled={!copyTaskModal.selectedDate}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Copy Task
               </button>
             </div>
           </div>
