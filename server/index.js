@@ -43,6 +43,7 @@ import eventRoutes from './routes/events.js';
 import assignmentRoutes from './routes/assignments.js';
 import absenceRoutes from './routes/absences.js';
 import riskLogsRouter from './routes/riskLogs.js';
+import taskRoutes from './routes/tasks.js';
 
 app.use('/api/developers', developerRoutes);
 app.use('/api/projects', projectRoutes);
@@ -53,6 +54,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/absences', absenceRoutes);
 app.use('/api/risk-logs', riskLogsRouter);
+app.use('/api/tasks', taskRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

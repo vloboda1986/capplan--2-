@@ -110,5 +110,13 @@ export interface RiskLog {
   date: string; // ISO String
   riskLevel: RiskLevel;
   riskDescription: string;
-  updatedBy?: string; // User ID
+}
+
+export interface Task {
+  id: string;
+  developerId: string;
+  projectId: string;
+  date: string; // Format: yyyy-MM-dd
+  title: string;
+  url: string;
 }

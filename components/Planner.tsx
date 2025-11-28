@@ -7,9 +7,14 @@ import {
   Trash2,
   BrainCircuit,
   CalendarOff,
-  AlertCircle
+  AlertCircle,
+  Plus as PlusIcon,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  X
 } from 'lucide-react';
-import { Developer, Project, DeveloperPlan, AbsenceType, Team, CalendarEvent } from '../types';
+import { Developer, Project, DeveloperPlan, AbsenceType, Team, CalendarEvent, Task } from '../types';
 import { WORK_HOURS_TARGET } from '../constants';
 import { analyzeCapacity } from '../services/geminiService';
 import * as DataService from '../services/dataService';
@@ -102,6 +107,17 @@ const Planner: React.FC<PlannerProps> = ({
   // Events State
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
+  // Tasks State
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [expandedCells, setExpandedCells] = useState<Set<string>>(new Set());
+  const [taskModalState, setTaskModalState] = useState<{
+    isOpen: boolean;
+    developerId: string | null;
+    projectId: string | null;
+    date: string | null;
+    taskFields: { title: string; url: string }[];
+  }>({ isOpen: false, developerId: null, projectId: null, date: null, taskFields: [{ title: '', url: '' }] });
+
   // Load events
   useEffect(() => {
     const loadEvents = async () => {
@@ -110,6 +126,15 @@ const Planner: React.FC<PlannerProps> = ({
     };
     loadEvents();
   }, [currentDate]);
+
+  // Load tasks
+  useEffect(() => {
+    const loadTasks = async () => {
+      const ts = await DataService.getTasks();
+      setTasks(ts);
+    };
+    loadTasks();
+  }, []);
 
   // Derive the week days based on view mode
   // Using addDays logic instead of startOfWeek to avoid import issues
@@ -227,6 +252,89 @@ const Planner: React.FC<PlannerProps> = ({
     setShowAnalysisModal(true);
     const result = await analyzeCapacity(developers, projects, plans, weekStart);
     setAnalysis({ loading: false, result });
+  };
+
+  // --- Task Handlers ---
+  const handleOpenTaskModal = (developerId: string, projectId: string, date: string) => {
+    if (readOnly) return;
+    setTaskModalState({
+      isOpen: true,
+      developerId,
+      projectId,
+      date,
+      taskFields: [{ title: '', url: '' }]
+    });
+  };
+
+  const handleCloseTaskModal = () => {
+    setTaskModalState({
+      isOpen: false,
+      developerId: null,
+      projectId: null,
+      date: null,
+      taskFields: [{ title: '', url: '' }]
+    });
+  };
+
+  const handleAddTaskField = () => {
+    setTaskModalState(prev => ({
+      ...prev,
+      taskFields: [...prev.taskFields, { title: '', url: '' }]
+    }));
+  };
+
+  const handleTaskFieldChange = (index: number, field: 'title' | 'url', value: string) => {
+    setTaskModalState(prev => {
+      const newFields = [...prev.taskFields];
+      newFields[index][field] = value;
+      return { ...prev, taskFields: newFields };
+    });
+  };
+
+  const handleSaveTasks = async () => {
+    const { developerId, projectId, date, taskFields } = taskModalState;
+    if (!developerId || !projectId || !date) return;
+
+    const validFields = taskFields.filter(f => f.url.trim());
+    if (validFields.length === 0) return;
+
+    const newTasks: Task[] = validFields.map(f => ({
+      id: crypto.randomUUID(),
+      developerId,
+      projectId,
+      date,
+      title: f.url.trim(), // Use URL as title since title field is removed
+      url: f.url.trim()
+    }));
+
+    for (const task of newTasks) {
+      await DataService.saveTask(task);
+    }
+
+    setTasks([...tasks, ...newTasks]);
+    handleCloseTaskModal();
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (readOnly) return;
+    await DataService.deleteTask(taskId);
+    setTasks(tasks.filter(t => t.id !== taskId));
+  };
+
+  const toggleCellExpanded = (cellKey: string) => {
+    setExpandedCells(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(cellKey)) {
+        newSet.delete(cellKey);
+      } else {
+        newSet.add(cellKey);
+      }
+      return newSet;
+    });
+  };
+
+  const getCellTasks = (developerId: string, projectId: string, date: string) => {
+    return tasks.filter(t => t.developerId === developerId && t.projectId === projectId && t.date === date);
   };
 
   // --- Render Helpers ---
@@ -507,7 +615,7 @@ const Planner: React.FC<PlannerProps> = ({
                                       />
                                     ) : (
                                       <div
-                                        className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-tight bg-red-50 rounded border border-red-100 cursor-pointer select-none"
+                                        className="w-full h-8 flex flex-col items-center justify-center text-[10px] leading-tight bg-red-50 rounded border border-red-100 cursor-pointer select-none"
                                         onClick={() => handleToggleCellRelease(dev.id, assignedProj.projectId, dateStr)}
                                         title="Click to remove Release marker"
                                       >
@@ -520,12 +628,87 @@ const Planner: React.FC<PlannerProps> = ({
                                     {!readOnly && !absence && !releaseEvent && (
                                       <button
                                         onClick={() => handleToggleCellRelease(dev.id, assignedProj.projectId, dateStr)}
-                                        className="absolute top-1 right-5 p-0.5 rounded-full z-10 opacity-0 group-hover/cell:opacity-100 text-slate-300 hover:text-red-500 transition-all"
+                                        className="absolute top-2 right-10 p-0.5 rounded-full z-10 opacity-0 group-hover/cell:opacity-100 text-slate-400 hover:text-slate-600 transition-all"
                                         title="Mark as Release"
                                       >
                                         <AlertCircle size={14} />
                                       </button>
                                     )}
+
+                                    {/* --- Task Links UI --- */}
+                                    {(() => {
+                                      const cellTasks = getCellTasks(dev.id, assignedProj.projectId, dateStr);
+                                      const hasTasks = cellTasks.length > 0;
+                                      const cellKey = `${dev.id}-${assignedProj.projectId}-${dateStr}`;
+                                      const isExpanded = expandedCells.has(cellKey);
+
+                                      return (
+                                        <>
+                                          {/* Task Controls (Add + Indicator) */}
+                                          <div className="absolute top-2 left-1 flex items-center space-x-1 z-20">
+                                            {/* Add Task Button (Hover) */}
+                                            {!readOnly && !absence && (
+                                              <button
+                                                onClick={() => handleOpenTaskModal(dev.id, assignedProj.projectId, dateStr)}
+                                                className="flex items-center justify-center px-1.5 py-0.5 rounded-full opacity-0 group-hover/cell:opacity-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+                                                title="Add Task Link"
+                                              >
+                                                <PlusIcon size={14} />
+                                              </button>
+                                            )}
+
+                                            {/* Task Indicator / Expand Toggle */}
+                                            {hasTasks && (
+                                              <button
+                                                onClick={() => toggleCellExpanded(cellKey)}
+                                                className={`flex items-center space-x-0.5 px-2 py-0.5 rounded text-[10px] transition-colors ${isExpanded ? 'bg-yellow-200 text-yellow-900' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'}`}
+                                              >
+                                                <span className="font-bold">{cellTasks.length}</span>
+                                                {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                                              </button>
+                                            )}
+                                          </div>
+
+                                          {/* Expanded Task List */}
+                                          {isExpanded && (
+                                            <div className="mt-2 w-full bg-white border border-slate-200 rounded-md overflow-hidden">
+                                              <div className="max-h-60 overflow-y-auto">
+                                                {cellTasks.map(task => (
+                                                  <div key={task.id} className="flex items-center justify-between p-1.5 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 group/task">
+                                                    <a
+                                                      href={task.url}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="flex items-center space-x-1.5 text-[10px] text-indigo-600 hover:underline truncate flex-1"
+                                                      title={task.title}
+                                                    >
+                                                      <ExternalLink size={8} className="flex-shrink-0" />
+                                                      <span className="truncate">{task.title}</span>
+                                                    </a>
+                                                    {!readOnly && (
+                                                      <button
+                                                        onClick={() => handleDeleteTask(task.id)}
+                                                        className="text-slate-300 hover:text-red-500 opacity-0 group-hover/task:opacity-100 transition-opacity p-0.5"
+                                                      >
+                                                        <Trash2 size={10} />
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                ))}
+                                              </div>
+                                              {!readOnly && (
+                                                <button
+                                                  onClick={() => handleOpenTaskModal(dev.id, assignedProj.projectId, dateStr)}
+                                                  className="w-full text-center text-[10px] py-1 text-slate-500 hover:bg-slate-50 hover:text-indigo-600 border-t border-slate-100 transition-colors"
+                                                >
+                                                  + Add
+                                                </button>
+                                              )}
+                                            </div>
+                                          )}
+                                        </>
+                                      );
+                                    })()}
                                   </div>
                                 );
                               })}
@@ -587,6 +770,71 @@ const Planner: React.FC<PlannerProps> = ({
           </div>
         )
       }
+      {/* --- Task Modal --- */}
+      {taskModalState.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-800">Add Tasks</h3>
+              <button onClick={handleCloseTaskModal} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+              {taskModalState.taskFields.map((field, idx) => (
+                <div key={idx} className="space-y-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-semibold text-slate-500">Task {idx + 1}</span>
+                    {taskModalState.taskFields.length > 1 && (
+                      <button
+                        onClick={() => {
+                          const newFields = taskModalState.taskFields.filter((_, i) => i !== idx);
+                          setTaskModalState(prev => ({ ...prev, taskFields: newFields }));
+                        }}
+                        className="text-slate-400 hover:text-red-500"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="URL (https://...)"
+                    value={field.url}
+                    onChange={(e) => handleTaskFieldChange(idx, 'url', e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    autoFocus={idx === taskModalState.taskFields.length - 1 && idx === 0}
+                  />
+                </div>
+              ))}
+
+              <button
+                onClick={handleAddTaskField}
+                className="w-full py-2 flex items-center justify-center space-x-2 border border-dashed border-slate-300 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-indigo-600 transition-colors text-sm"
+              >
+                <PlusIcon size={16} />
+                <span>Add Another Task</span>
+              </button>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-end space-x-3">
+              <button
+                onClick={handleCloseTaskModal}
+                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveTasks}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium text-sm shadow-sm"
+              >
+                Save Tasks
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };

@@ -1,4 +1,4 @@
-import { DeveloperPlan, AssignedProject, AbsenceRecord, AbsenceType, Developer, Project, Team, AppUser, CalendarEvent, RiskLog } from '../types';
+import { DeveloperPlan, AssignedProject, AbsenceRecord, AbsenceType, Developer, Project, Team, AppUser, CalendarEvent, RiskLog, Task } from '../types';
 
 const API_BASE = '/api';
 
@@ -183,6 +183,26 @@ export const saveEvent = async (event: CalendarEvent) => {
 
 export const deleteEvent = async (id: string) => {
   // Not implemented
+};
+
+// --- Tasks ---
+export const getTasks = async (): Promise<Task[]> => {
+  const res = await fetch(`${API_BASE}/tasks`);
+  return res.json();
+};
+
+export const saveTask = async (task: Task) => {
+  await fetch(`${API_BASE}/tasks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(task)
+  });
+};
+
+export const deleteTask = async (id: string) => {
+  await fetch(`${API_BASE}/tasks/${id}`, {
+    method: 'DELETE'
+  });
 };
 
 // --- Risk Logs ---
