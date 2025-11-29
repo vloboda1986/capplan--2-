@@ -25,6 +25,14 @@ const Login: React.FC<LoginProps> = ({ users, onLogin }) => {
       const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
 
       if (user) {
+        // Check password if user has one set
+        if (user.password && user.password !== password) {
+          setError('Invalid password. Please try again.');
+          setLoading(false);
+          return;
+        }
+
+        // If user has no password set, allow login (or we could force them to set one)
         onLogin(user);
       } else {
         setError('Invalid email address. Please use one of the test accounts.');

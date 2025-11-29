@@ -103,6 +103,7 @@ export interface AppUser {
   name: string;
   role: UserRole;
   email?: string;
+  password?: string;
 }
 
 export interface RiskLog {

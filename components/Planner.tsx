@@ -13,9 +13,11 @@ import {
   ChevronUp,
   ExternalLink,
   ArrowRight,
-  X
+  X,
+  User,
+  Users
 } from 'lucide-react';
-import { Developer, Project, DeveloperPlan, AbsenceType, Team, CalendarEvent, Task } from '../types';
+import { Developer, Project, DeveloperPlan, AbsenceType, Team, CalendarEvent, Task, AppUser, UserRole } from '../types';
 import { WORK_HOURS_TARGET } from '../constants';
 import { analyzeCapacity } from '../services/geminiService';
 import * as DataService from '../services/dataService';
@@ -86,6 +88,7 @@ interface PlannerProps {
   onAssignProject: (devId: string, projId: string) => void;
   onRemoveProject: (devId: string, projId: string) => void;
   readOnly?: boolean;
+  currentUser?: AppUser | null;
 }
 
 const Planner: React.FC<PlannerProps> = ({
@@ -97,10 +100,12 @@ const Planner: React.FC<PlannerProps> = ({
   onUpdateAbsence,
   onAssignProject,
   onRemoveProject,
-  readOnly = false
+  readOnly = false,
+  currentUser
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'weekly' | 'biweekly'>('weekly');
+  const [showMyBookingOnly, setShowMyBookingOnly] = useState(false);
   const [analysis, setAnalysis] = useState<{ loading: boolean; result: string | null }>({ loading: false, result: null });
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [activeDropdownDevId, setActiveDropdownDevId] = useState<string | null>(null);
@@ -174,6 +179,14 @@ const Planner: React.FC<PlannerProps> = ({
 
   const weekDateStrings = weekDays.map(d => format(d, 'yyyy-MM-dd'));
 
+  // --- Filter Developers ---
+  const filteredDevelopers = useMemo(() => {
+    if (showMyBookingOnly && currentUser) {
+      return developers.filter(dev => dev.name === currentUser.name);
+    }
+    return developers;
+  }, [developers, showMyBookingOnly, currentUser]);
+
   // --- Group Developers by Team ---
   const groupedDevelopers = useMemo(() => {
     // Sort teams by sortOrder
@@ -183,7 +196,7 @@ const Planner: React.FC<PlannerProps> = ({
     const groups: { team: Team | null; devs: Developer[] }[] = [];
 
     sortedTeams.forEach(team => {
-      const teamDevs = developers.filter(d => d.teamId === team.id);
+      const teamDevs = filteredDevelopers.filter(d => d.teamId === team.id);
 
       groups.push({
         team,
@@ -191,14 +204,14 @@ const Planner: React.FC<PlannerProps> = ({
       });
     });
 
-    const unassigned = developers.filter(d => !d.teamId || !teamMap.has(d.teamId));
+    const unassigned = filteredDevelopers.filter(d => !d.teamId || !teamMap.has(d.teamId));
 
     if (unassigned.length > 0) {
       groups.push({ team: null, devs: unassigned });
     }
 
     return groups.filter(g => g.devs.length > 0);
-  }, [developers, teams]);
+  }, [filteredDevelopers, teams]);
 
 
   // --- Handlers ---
@@ -434,6 +447,20 @@ const Planner: React.FC<PlannerProps> = ({
               Biweekly
             </button>
           </div>
+
+          {/* My Booking Filter (Team Mate only) */}
+          {currentUser?.role === UserRole.TeamMate && (
+            <button
+              onClick={() => setShowMyBookingOnly(!showMyBookingOnly)}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${showMyBookingOnly
+                  ? 'bg-indigo-600 text-white shadow-sm hover:bg-indigo-700'
+                  : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+                }`}
+            >
+              {showMyBookingOnly ? <Users size={14} /> : <User size={14} />}
+              {showMyBookingOnly ? 'Show All' : 'Show Only My Booking'}
+            </button>
+          )}
 
           <h2 className="text-lg font-semibold text-slate-800 hidden lg:block">Resource Schedule</h2>
         </div>

@@ -425,6 +425,7 @@ const App: React.FC = () => {
               onAssignProject={handleAssignProject}
               onRemoveProject={handleRemoveProject}
               readOnly={perms.plannerReadOnly}
+              currentUser={currentUser}
             />
           )}
 

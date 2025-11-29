@@ -102,15 +102,17 @@ export const getAppUsers = async (): Promise<AppUser[]> => {
 };
 
 export const saveAppUser = async (user: AppUser) => {
-    await fetch(`${API_BASE}/users`, {
-        method: 'POST',
+    await fetch(`${API_BASE}/users/${user.id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user)
     });
 };
 
 export const deleteAppUser = async (id: string) => {
-    // Not implemented in API
+    await fetch(`${API_BASE}/users/${id}`, {
+        method: 'DELETE'
+    });
 };
 
 // --- Events ---

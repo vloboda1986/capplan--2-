@@ -8,7 +8,8 @@ const userSchema = new mongoose.Schema({
         enum: ['Admin', 'Project Manager', 'Team Mate'],
         required: true
     },
-    email: { type: String }
+    email: { type: String },
+    password: { type: String }
 });
 
 export default mongoose.model('User', userSchema);
